@@ -12,63 +12,71 @@
  */
 #include <DFRobot_VL6180X.h>
 
+I2C i2c(D12, A6);
 //When the IIC address is changed, the address should be passed in when the class is instantiated. And it will be saved after its changing. 
 //But if the sensor is restarted by using the CE pin, the IIC address will change back to the default address 0x29
 //DFRobot_VL6180X VL6180X(/* iicAddr */0x29,/* TwoWire * */&Wire);
-DFRobot_VL6180X VL6180X;
+DFRobot_VL6180X VL6180X(VL6180X_IIC_ADDRESS, &i2c);
 
 void setup() {
-  Serial.begin(9600);
   while(!(VL6180X.begin())){
-    Serial.println("Please check that the IIC device is properly connected!");
-    delay(1000);
+    printf("Please check that the IIC device is properly connected!\n");
+    ThisThread::sleep_for(1000ms);
   }
   /*Change IIC address*/
-  //VL6180X.setIICAddr(0x29);
+  //VL6180X.setIICAddr(0×29);
 }
+
 
 void loop() {
   /*Poll measurement of ambient light data*/
   float lux = VL6180X.alsPoLLMeasurement();
-  String str ="ALS: "+String(lux)+" lux";
-  Serial.println(str);
-  delay(1000);
+  int mlux = (int)(lux*1000);
+  printf("ALS: %i mlux, ", mlux);
+  ThisThread::sleep_for(1000ms);
   /*Poll measurement of distance*/
   uint8_t range = VL6180X.rangePollMeasurement();
   /*Get the judgment of the range value*/
   uint8_t status = VL6180X.getRangeResult();
-  String str1 = "Range: "+String(range) + " mm"; 
   switch(status){
   case VL6180X_NO_ERR:
-    Serial.println(str1);
+    printf("Range: %i mm\n", range);
     break;
   case VL6180X_EARLY_CONV_ERR:
-    Serial.println("RANGE ERR: ECE check failed !");
+    printf("RANGE ERR: ECE check failed !\n");
     break;
   case VL6180X_MAX_CONV_ERR:
-    Serial.println("RANGE ERR: System did not converge before the specified max!");
+    printf("RANGE ERR: System did not converge before the specified max!\n");
     break;
   case VL6180X_IGNORE_ERR:
-    Serial.println("RANGE ERR: Ignore threshold check failed !");
+    printf("RANGE ERR: Ignore threshold check failed !\n");
     break;
   case VL6180X_MAX_S_N_ERR:
-    Serial.println("RANGE ERR: Measurement invalidated!");
+    printf("RANGE ERR: Measurement invalidated!\n");
     break;
   case VL6180X_RAW_Range_UNDERFLOW_ERR:
-    Serial.println("RANGE ERR: RESULT_RANGE_RAW < 0!");
+    printf("RANGE ERR: RESULT_RANGE_RAW < 0!\n");
     break;
   case VL6180X_RAW_Range_OVERFLOW_ERR:
-    Serial.println("RESULT_RANGE_RAW is out of range !");
+    printf("RESULT_RANGE_RAW is out of range !\n");
     break;
   case VL6180X_Range_UNDERFLOW_ERR:
-    Serial.println("RANGE ERR: RESULT__RANGE_VAL < 0 !");
+    printf("RANGE ERR: RESULT__RANGE_VAL < 0 !\n");
     break;
   case VL6180X_Range_OVERFLOW_ERR:
-    Serial.println("RANGE ERR: RESULT__RANGE_VAL is out of range !");
+    printf("RANGE ERR: RESULT__RANGE_VAL is out of range !\n");
     break;
   default:
-    Serial.println("RANGE ERR: Systerm err!");
+    printf("RANGE ERR: Systerm err! Error code %x\n", status);
     break;
   }
-  delay(1000);
+
+  ThisThread::sleep_for(1000ms);
+  loop();
+}
+
+int main()
+{
+    setup();
+    loop();
 }
