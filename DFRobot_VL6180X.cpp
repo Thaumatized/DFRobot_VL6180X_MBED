@@ -10,10 +10,12 @@
  * @url  https://github.com/DFRobot/DFRobot_VL6180X
  */
 #include <DFRobot_VL6180X.h>
+#include <cstdint>
 
-DFRobot_VL6180X::DFRobot_VL6180X(uint8_t iicAddr,TwoWire *pWire):
-_pWire(pWire)
+DFRobot_VL6180X::DFRobot_VL6180X(uint8_t iicAddr, I2C *i2c)
 {
+  _i2c = i2c;
+
   _deviceAddr = iicAddr;
   _modeGpio1Reg.reversed=0;
   _modeGpio1Reg.select = 0;
@@ -36,17 +38,17 @@ _pWire(pWire)
   _ALSStartReg.reserved = 0;
 
   _analogueGainReg.gain = 6;
-  _analogueGainReg.gain = 8;
+  //_analogueGainReg.gain = 8;
   
   _gain = 1.0;
   _atime =100;
-
 }
 
 bool DFRobot_VL6180X::begin()
 {
-  _pWire->begin();
-  if((getDeviceID()!=VL6180X_ID)){
+  uint8_t devid = getDeviceID();
+  printf("Device id: %x\n", devid);
+  if((devid!=VL6180X_ID)){
     return false;
   }
   init();
@@ -117,6 +119,7 @@ uint8_t DFRobot_VL6180X::rangePollMeasurement()
   _rangeStartReg.startstop = 1;
   _rangeStartReg.select = 0;
   write8bit(VL6180X_SYSRANGE_START,*((uint8_t*)(&_rangeStartReg)));
+  ThisThread::sleep_for(50ms);
   return rangeGetMeasurement();
 }
 
@@ -185,6 +188,7 @@ float DFRobot_VL6180X::alsPoLLMeasurement()
   _ALSStartReg.startstop = 1;
   _ALSStartReg.select = 0;
   write8bit(VL6180X_SYSALS_START,*((uint8_t*)(&_ALSStartReg)));
+  ThisThread::sleep_for(1000ms);
   return alsGetMeasurement();
 }
 void DFRobot_VL6180X::setALSThresholdValue(uint16_t thresholdL,uint16_t thresholdH)
@@ -224,7 +228,7 @@ void DFRobot_VL6180X :: stopMeasurement()
   _rangeStartReg.select = 0;
   write8bit(VL6180X_SYSRANGE_START,*((uint8_t*)(&_rangeStartReg)));
   write8bit(VL6180X_INTERLEAVED_MODE_ENABLE,0x00);
-  delay(1000);
+  ThisThread::sleep_for(1000ms);
   write8bit(VL6180X_SYSTEM_INTERRUPT_CLEAR,7);
 }
 void DFRobot_VL6180X::alsSetInterMeasurementPeriod(uint16_t periodMs)
@@ -316,50 +320,45 @@ void DFRobot_VL6180X::setIICAddr(uint8_t addr)
 
 void DFRobot_VL6180X:: write8bit(uint16_t regAddr,uint8_t value)
 {
-  _pWire->beginTransmission(_deviceAddr);
-  _pWire->write(regAddr>>8);
-  _pWire->write(regAddr);
-  _pWire->write(value);
-  _pWire->endTransmission();
+    char buffer[3];
+    buffer[0] = regAddr>>8;
+    buffer[1] = regAddr&0xFF;
+    buffer[2] = value;
+
+    //printf("writing 8 bits to %x value %x\n", regAddr, value);
+
+    _i2c->write(_deviceAddr<<1, buffer, 3, false);
 }
 
 void DFRobot_VL6180X:: write16bit(uint16_t regAddr,uint16_t value)
 {
-  _pWire->beginTransmission(_deviceAddr);
-  _pWire->write(regAddr>>8);
-  _pWire->write(regAddr);
-  _pWire->write(value>>8);
-  _pWire->write(value);
-  _pWire->endTransmission();
+    char buffer[4];
+    buffer[0] = regAddr>>8;
+    buffer[1] = regAddr&0xFF;
+    buffer[2] = value>>8;
+    buffer[3] = value&0xFF;
+
+    //printf("writing 16 bits to %x value %x\n", regAddr, value);
+
+    _i2c->write(_deviceAddr<<1, buffer, 4, false);
 }
 
 uint16_t DFRobot_VL6180X:: read(uint16_t regAddr,uint8_t readNum)
 {
-  uint16_t value=0;
-  uint8_t  a ,b;
-  _pWire->beginTransmission(_deviceAddr);
-  _pWire->write(regAddr>>8);
-  _pWire->write(regAddr&0xFF);
-  _pWire->endTransmission();
-  _pWire->requestFrom(_deviceAddr, readNum);
+    uint16_t value;
+
+    char writebuf[2];
+    writebuf[0] = regAddr<<8;
+    writebuf[1] = regAddr&0xFF;
+    char readbuf[2];
+    _i2c->write(_deviceAddr<<1, writebuf, 2, false);
+    _i2c->read(_deviceAddr<<1, readbuf, readNum, false);
+
   if(readNum==1){
-    value = _pWire->read();
+    value = readbuf[0];
   }else if(readNum == 2){
-    b = _pWire->read();
-    a = _pWire->read();
-    value = (b<<8)|a;
+    value = (readbuf[0]<<8)|readbuf[1];
   }
+
   return value;
 }
-
-
-
-
-
-
-
-
-
-
-
-

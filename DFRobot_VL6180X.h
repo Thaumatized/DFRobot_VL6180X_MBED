@@ -15,8 +15,9 @@
 #ifndef _DFROBOT_VL6180X_H_
 #define _DFROBOT_VL6180X_H_
 
-#include <Arduino.h>
-#include <Wire.h>
+#include <cstdint>
+#include <mbed.h>
+
 #ifdef ENABLE_DBG
 #define DBG(...) {Serial.print("[");Serial.print(__FUNCTION__); Serial.print("(): "); Serial.print(__LINE__); Serial.print(" ] "); Serial.println(__VA_ARGS__);}
 #else
@@ -43,7 +44,7 @@
    *
 */
 typedef struct {
-  uint8_t   reversed: 1; /* Reserved. Write 0.*/
+  uint8_t  reversed: 1; /* Reserved. Write 0.*/
   uint8_t   select: 4; /* Functional configuration options [bit:4-1].
                           0000: OFF (Hi-Z)
                           1000: GPIO Interrupt output
@@ -255,7 +256,7 @@ public:
    * @brief  constructed function
    * @param  pWire  When instantiate this class, you can specify its twowire
    */
-  DFRobot_VL6180X(uint8_t iiicAddr = VL6180X_IIC_ADDRESS,TwoWire *pWire=&Wire);
+  DFRobot_VL6180X(uint8_t iicAddr, I2C *i2c);
 
   /**
    * @brief  Destructor
@@ -485,7 +486,7 @@ private:
   uint16_t read(uint16_t regAddr,uint8_t readNum);
 
 private:
-  TwoWire *_pWire;
+  I2C                  *_i2c;
   sModeGpio1Reg_t      _modeGpio1Reg;
   sConfigIntGPIOReg_t  _configIntGPIOReg;
   sClearIntReg_t       _clearIntReg;
